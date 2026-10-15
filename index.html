@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聲控解謎：成語大冒險</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+            min-height: 100vh;
+            user-select: none;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(59, 130, 246, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+
+        .mic-active {
+            animation: pulse-ring 1.5s infinite;
+            background-color: #ef4444 !important;
+        }
+
+        @keyframes fill-glow {
+            0% { transform: scale(0.5) rotate(-10deg); opacity: 0; filter: drop-shadow(0 0 0px #f59e0b); }
+            50% { transform: scale(1.2) rotate(5deg); opacity: 1; filter: drop-shadow(0 0 25px #f59e0b); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; filter: drop-shadow(0 0 10px #fbbf24); }
+        }
+
+        .fill-animation {
+            animation: fill-glow 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col justify-between min-height-screen">
+
+    <!-- Top Navigation Header -->
+    <header class="w-full glass-card sticky top-0 z-30 shadow-sm border-b border-sky-100">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-white text-xl font-black shadow-md shadow-orange-200">
+                    <i class="fa-solid fa-microphone-lines"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">聲控解謎：成語大冒險</h1>
+                    <p class="text-xs text-slate-500 font-medium">國小中高年級成語朗讀闖關遊戲</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <div class="bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full flex items-center gap-2 text-amber-700 font-bold text-sm shadow-sm">
+                    <i class="fa-solid fa-star text-amber-500"></i>
+                    <span id="scoreDisplay">得分：0</span>
+                </div>
+                <button onclick="toggleModal('handbookModal')" class="p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors" title="成語圖鑑">
+                    <i class="fa-solid fa-book-bookmark text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Container -->
+    <main class="max-w-3xl mx-auto w-full px-4 py-6 flex-grow flex flex-col justify-center">
+        <!-- Progress Bar -->
+        <div class="w-full mb-6">
+            <div class="flex justify-between items-center mb-2 px-1">
+                <span class="text-sm font-bold text-slate-600" id="levelProgressText">關卡 1 / 10</span>
+                <span class="text-xs font-semibold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full" id="difficultyTag">基礎</span>
+            </div>
+            <div class="w-full bg-slate-200 h-3 rounded-full overflow-hidden p-0.5 shadow-inner">
+                <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-500" style="width: 10%;"></div>
+            </div>
+        </div>
+
+        <!-- Central Game Card -->
+        <div class="glass-card rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden border border-white">
+            
+            <!-- Hint Banner -->
+            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-4 mb-6 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <span class="text-indigo-500 text-lg mt-0.5"><i class="fa-solid fa-lightbulb"></i></span>
+                    <div>
+                        <h2 class="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">成語釋義提示</h2>
+                        <p id="idiomMeaning" class="text-slate-700 text-sm sm:text-base font-medium leading-relaxed">
+                            載入中...
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Idiom Display Box -->
+            <div class="py-6 my-2 flex flex-col items-center justify-center">
+                <div id="idiomBoxContainer" class="flex items-center justify-center gap-2 sm:gap-4 flex-wrap">
+                    <!-- Dynamic Tiles injected here -->
+                </div>
+                <p class="text-xs text-slate-400 mt-4 flex items-center gap-1">
+                    <i class="fa-solid fa-circle-info"></i> 請聽完標準發音後，唸出完整的成語
+                </p>
+            </div>
+
+            <!-- Controls Section -->
+            <div class="mt-6 pt-6 border-t border-slate-100 flex flex-col items-center gap-4">
+                
+                <!-- Audio Demo & Voice Recording -->
+                <div class="flex items-center justify-center gap-4 w-full flex-wrap">
+                    <button id="demoAudioBtn" onclick="playDemoAudio()" class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-5 py-3 rounded-2xl transition-all shadow-sm active:scale-95">
+                        <i class="fa-solid fa-volume-high text-blue-500 text-lg"></i>
+                        <span>示範發音</span>
+                    </button>
+
+                    <button id="micBtn" onclick="toggleSpeechRecognition()" class="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold px-7 py-3.5 rounded-2xl transition-all shadow-lg shadow-indigo-200 active:scale-95 text-lg">
+                        <i id="micIcon" class="fa-solid fa-microphone"></i>
+                        <span id="micText">開始朗讀解謎</span>
+                    </button>
+                </div>
+
+                <!-- Live Voice Speech Status -->
+                <div id="speechFeedback" class="h-8 flex items-center justify-center text-sm font-semibold text-slate-500 transition-all">
+                    點擊「示範發音」可先聽讀音，點擊「開始朗讀解謎」進行挑戰
+                </div>
+
+                <!-- Text Input Fallback Toggle -->
+                <div class="text-center mt-2">
+                    <button onclick="toggleFallbackInput()" class="text-xs text-slate-400 hover:text-indigo-600 underline transition-colors">
+                        麥克風無法使用？切換為文字輸入解謎
+                    </button>
+                </div>
+
+                <!-- Fallback Input Section (Hidden by Default) -->
+                <div id="fallbackSection" class="hidden w-full max-w-sm mt-2 flex gap-2">
+                    <input type="text" id="manualInput" placeholder="請輸入完整的成語..." class="w-full px-4 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
+                    <button onclick="checkManualInput()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-colors">
+                        送出
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Extra Info Accordion (Story & Example) -->
+        <div id="extraDetailCard" class="mt-4 glass-card rounded-2xl p-4 hidden border border-amber-100 bg-amber-50/50">
+            <h3 class="text-sm font-bold text-amber-800 flex items-center gap-2 mb-2">
+                <i class="fa-solid fa-book-open text-amber-500"></i> 成語小常識與典故
+            </h3>
+            <p id="idiomOrigin" class="text-xs text-slate-600 leading-relaxed mb-2"></p>
+            <div class="bg-white/80 p-2.5 rounded-xl border border-amber-100">
+                <p id="idiomExample" class="text-xs text-slate-700 font-medium italic"></p>
+            </div>
+            <button onclick="nextLevel()" class="mt-4 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-sm">
+                <span>下一關</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full text-center py-4 text-xs text-slate-400 border-t border-slate-200/50">
+        專為國小中高年級設計 · 聲控語音互動學習遊戲
+    </footer>
+
+    <!-- Idiom Handbook Modal -->
+    <div id="handbookModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-lg w-full max-h-[80vh] flex flex-col shadow-2xl overflow-hidden border border-slate-100">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-book-bookmark text-amber-500"></i> 本次挑戰成語辭庫
+                </h3>
+                <button onclick="toggleModal('handbookModal')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="handbookList" class="p-5 overflow-y-auto space-y-4 flex-grow">
+                <!-- Injected dynamically -->
+            </div>
+            <div class="p-4 bg-slate-50 border-t border-slate-100 text-right">
+                <button onclick="toggleModal('handbookModal')" class="bg-slate-800 text-white font-bold px-5 py-2 rounded-xl text-sm hover:bg-slate-700 transition-colors">關閉</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victoryModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl border border-white">
+            <div class="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4 text-amber-500 text-4xl shadow-inner">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 class="text-2xl font-black text-slate-800 mb-2">恭喜通關所有成語！</h2>
+            <p class="text-slate-600 text-sm mb-6">你已經成功運用正確的發音與理解力，破解了所有的成語關卡！</p>
+            <div class="bg-slate-50 p-4 rounded-2xl mb-6 flex justify-around">
+                <div>
+                    <div class="text-xs text-slate-400 font-medium">總得分</div>
+                    <div id="finalScore" class="text-2xl font-black text-amber-500">0</div>
+                </div>
+                <div>
+                    <div class="text-xs text-slate-400 font-medium">挑戰成語數</div>
+                    <div id="finalIdiomsCount" class="text-2xl font-black text-indigo-600">0</div>
+                </div>
+            </div>
+            <button onclick="restartGame()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg hover:from-blue-700 hover:to-indigo-700 transition-all">
+                再玩一次
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * 國小中高年級精選成語辭庫 (含有缺字位置、釋義、典故與生活例句)
+         */
+        const idiomDatabase = [
+            {
+                idiom: "守株待兔",
+                missingIndex: 3, // 守株待 ＿
+                meaning: "比喻拘泥守舊，不知變通；或企圖僥倖得到成功。",
+                origin: "出自《韓非子·五蠹》。宋國有個農夫在田裡看見兔子撞在樹樁上折頸而死，便放下農具天天守著樹樁希望再撿到兔子。",
+                example: "我們應該主動去尋找機會，而不是守株待兔。",
+                difficulty: "基礎"
+            },
+            {
+                idiom: "畫蛇添足",
+                missingIndex: 3, // 畫蛇添 ＿
+                meaning: "比喻多此一舉，不但無益，反而不合宜。",
+                origin: "出自《戰國策·齊策二》。比賽畫蛇，先畫好的人又給蛇畫上了腳，結果反而失去了比賽勝利。",
+                example: "這篇文章結構已經很完整了，再加這段話簡直是畫蛇添足。",
+                difficulty: "基礎"
+            },
+            {
+                idiom: "井底之蛙",
+                missingIndex: 3, // 井底之 ＿
+                meaning: "比喻見識狹小，眼界不廣的人。",
+                origin: "出自《莊子·秋水》。住在井底的青蛙以為天只有井口那麼大。",
+                example: "我們要多閱讀、多出外見識，才不會成為井底之蛙。",
+                difficulty: "基礎"
+            },
+            {
+                idiom: "掩耳盜鈴",
+                missingIndex: 0, // ＿ 耳盜鈴
+                meaning: "比喻自己欺騙自己，以為可以瞞過他人。",
+                origin: "出自《呂氏春秋·自知》。想偷鐘卻嫌聲音太大，於是捂住自己的耳朵以為別人也聽不到。",
+                example: "犯了錯就要坦白承認，掩耳盜鈴只會讓事情更糟糕。",
+                difficulty: "進階"
+            },
+            {
+                idiom: "亡羊補牢",
+                missingIndex: 2, // 亡羊 ＿ 牢
+                meaning: "比喻犯錯或遭受損失後，及時採取補救措施。",
+                origin: "出自《戰國策·楚策四》。羊圈破了羊丟失後，趕緊修理羊圈，就不會再丟羊了。",
+                example: "雖然這次考試沒考好，但只要現在開始努力，亡羊補牢還來得及。",
+                difficulty: "基礎"
+            },
+            {
+                idiom: "胸有成竹",
+                missingIndex: 2, // 胸有 ＿ 竹
+                meaning: "比喻做事之前心中已有完整的打算與把握。",
+                origin: "出自宋代蘇軾《文與可畫筼筜谷偃竹記》。畫竹子前，心中已經有了竹子的完整形象。",
+                example: "對於明天的演講比賽，他準備充分，早已胸有成竹。",
+                difficulty: "進階"
+            },
+            {
+                idiom: "杯弓蛇影",
+                missingIndex: 2, // 杯弓 ＿ 影
+                meaning: "比喻因疑神疑鬼而引起不必要的恐懼。",
+                origin: "出自《風俗通義·怪神》。牆上弓的倒影落在酒杯裡，誤以為酒中有小蛇而驚嚇成病。",
+                example: "事情還沒確定前不要杯弓蛇影，自己嚇自己。",
+                difficulty: "挑戰"
+            },
+            {
+                idiom: "狐假虎威",
+                missingIndex: 1, // 狐 ＿ 虎威
+                meaning: "比喻憑藉有權勢者的威風來欺壓他人。",
+                origin: "出自《戰國策·楚策一》。狐狸借著老虎的威風嚇跑了百獸。",
+                example: "他只不過是狐假虎威，仗著父親的名氣在外面逞風頭罷了。",
+                difficulty: "基礎"
+            },
+            {
+                idiom: "拔苗助長",
+                missingIndex: 0, // ＿ 苗助長
+                meaning: "比喻違反事物發展規律，急於求成，反而把事情弄糟糕。",
+                origin: "出自《孟子·公孫丑上》。宋國有農夫擔心禾苗不長，就手動把禾苗拔高，結果禾苗全枯萎了。",
+                example: "學習需要循序漸進，拔苗助長只會適得其反。",
+                difficulty: "進階"
+            },
+            {
+                idiom: "雪中送炭",
+                missingIndex: 3, // 雪中送 ＿
+                meaning: "比喻在他人困苦急難時給予及時的援助。",
+                origin: "出自宋代范成大《大雪送炭與將官》詩。在大雪紛飛時給人送去取暖的木炭。",
+                example: "在我最需要幫助的時候，他伸出援助之手，真是雪中送炭。",
+                difficulty: "進階"
+            }
+        ];
+
+        let currentLevel = 0;
+        let score = 0;
+        let recognition = null;
+        let isListening = false;
+        let speechSynth = window.speechSynthesis;
+        let isCurrentAnswered = false;
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            initSpeechRecognition();
+            loadLevel(currentLevel);
+            renderHandbook();
+        });
+
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                updateSpeechStatus("您的瀏覽器不支援語音辨識，請使用文字輸入模式。", "text-amber-600");
+                document.getElementById('micBtn').disabled = true;
+                document.getElementById('micBtn').classList.add('opacity-50', 'cursor-not-allowed');
+                toggleFallbackInput();
+                return;
+            }
+
+            recognition = new SpeechRecognition();
+            recognition.lang = 'zh-TW';
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                isListening = true;
+                updateMicUI(true);
+                updateSpeechStatus("正在聆聽中...請清楚唸出完整成語", "text-blue-600 animate-pulse");
+            };
+
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                
+                // Clean input text
+                transcript = transcript.replace(/[^\u4e00-\u9fa5]/g, '');
+                updateSpeechStatus(`聽到："${transcript}"`, "text-indigo-600 font-bold");
+
+                const currentIdiom = idiomDatabase[currentLevel].idiom;
+                
+                // Check if recognition contains target idiom
+                if (transcript.includes(currentIdiom) || checkExactMatch(transcript, currentIdiom)) {
+                    recognition.stop();
+                    handleCorrectAnswer();
+                }
+            };
+
+            recognition.onerror = (event) => {
+                console.warn("Speech recognition error:", event.error);
+                isListening = false;
+                updateMicUI(false);
+                if (event.error === 'not-allowed') {
+                    updateSpeechStatus("無法取得麥克風權限，請確認瀏覽器設定。", "text-red-500");
+                } else if (event.error === 'no-speech') {
+                    updateSpeechStatus("沒有偵測到聲音，請再試一次。", "text-slate-500");
+                } else {
+                    updateSpeechStatus("辨識發生錯誤，請再試一次。", "text-slate-500");
+                }
+            };
+
+            recognition.onend = () => {
+                isListening = false;
+                updateMicUI(false);
+            };
+        }
+
+        // Fuzzy match helper for small mispronunciations or partial speech API bugs
+        function checkExactMatch(transcript, target) {
+            if (!transcript || transcript.length < 3) return false;
+            let matchCount = 0;
+            for (let char of target) {
+                if (transcript.includes(char)) matchCount++;
+            }
+            return matchCount >= 3; // At least 3 out of 4 characters correct
+        }
+
+        function toggleSpeechRecognition() {
+            if (isCurrentAnswered) return;
+            if (!recognition) {
+                alert("您的瀏覽器未支援語音辨識功能，請直接使用下方文字輸入。");
+                return;
+            }
+
+            if (isListening) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    recognition.stop();
+                }
+            }
+        }
+
+        function updateMicUI(listening) {
+            const micBtn = document.getElementById('micBtn');
+            const micIcon = document.getElementById('micIcon');
+            const micText = document.getElementById('micText');
+
+            if (listening) {
+                micBtn.classList.add('mic-active');
+                micIcon.className = "fa-solid fa-microphone-lines text-white";
+                micText.innerText = "聆聽中...點擊停止";
+            } else {
+                micBtn.classList.remove('mic-active');
+                micIcon.className = "fa-solid fa-microphone";
+                micText.innerText = "開始朗讀解謎";
+            }
+        }
+
+        function updateSpeechStatus(text, className = "text-slate-500") {
+            const feedbackContainer = document.getElementById('speechFeedback');
+            feedbackContainer.className = `h-8 flex items-center justify-center text-sm font-semibold transition-all ${className}`;
+            feedbackContainer.innerText = text;
+        }
+
+        function playDemoAudio() {
+            if (!speechSynth) {
+                alert("您的瀏覽器不支援語音合成播放。");
+                return;
+            }
+
+            // Stop any ongoing speech
+            speechSynth.cancel();
+
+            const currentIdiom = idiomDatabase[currentLevel].idiom;
+            const utterance = new SpeechSynthesisUtterance(currentIdiom);
+            utterance.lang = 'zh-TW';
+            utterance.rate = 0.8; // Slightly slower speed for primary school learners
+
+            const demoBtn = document.getElementById('demoAudioBtn');
+            demoBtn.classList.add('border-blue-500', 'bg-blue-50', 'text-blue-600');
+
+            utterance.onend = () => {
+                demoBtn.classList.remove('border-blue-500', 'bg-blue-50', 'text-blue-600');
+            };
+
+            speechSynth.speak(utterance);
+        }
+
+        function loadLevel(index) {
+            if (index >= idiomDatabase.length) {
+                showVictoryModal();
+                return;
+            }
+
+            isCurrentAnswered = false;
+            const data = idiomDatabase[index];
+
+            // Update Header & Progress
+            document.getElementById('levelProgressText').innerText = `關卡 ${index + 1} / ${idiomDatabase.length}`;
+            document.getElementById('difficultyTag').innerText = data.difficulty;
+            const progressPercent = ((index + 1) / idiomDatabase.length) * 100;
+            document.getElementById('progressBar').style.width = `${progressPercent}%`;
+
+            // Update Meaning Definition
+            document.getElementById('idiomMeaning').innerText = data.meaning;
+
+            // Hide Extra Details Box
+            document.getElementById('extraDetailCard').classList.add('hidden');
+
+            // Render Tiles (With Missing Tile)
+            const idiomBoxContainer = document.getElementById('idiomBoxContainer');
+            idiomBoxContainer.innerHTML = '';
+
+            const idiomChars = data.idiom.split('');
+            idiomChars.forEach((char, i) => {
+                const tile = document.createElement('div');
+                tile.id = `tile-${i}`;
+
+                if (i === data.missingIndex) {
+                    // Blank Missing Tile
+                    tile.className = "w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-4 border-dashed border-amber-400 bg-amber-50/80 flex items-center justify-center text-2xl sm:text-3xl font-black text-amber-500 shadow-inner";
+                    tile.innerText = "？";
+                } else {
+                    // Revealed Normal Tile
+                    tile.className = "w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white border-2 border-slate-200 flex items-center justify-center text-2xl sm:text-3xl font-black text-slate-700 shadow-md";
+                    tile.innerText = char;
+                }
+                idiomBoxContainer.appendChild(tile);
+            });
+
+            updateSpeechStatus("點擊「示範發音」可先聽讀音，點擊「開始朗讀解謎」進行挑戰");
+        }
+
+        function handleCorrectAnswer() {
+            if (isCurrentAnswered) return;
+            isCurrentAnswered = true;
+
+            const data = idiomDatabase[currentLevel];
+            const missingTile = document.getElementById(`tile-${data.missingIndex}`);
+
+            // Trigger Glowing Animation and Fill Tile
+            missingTile.innerText = data.idiom[data.missingIndex];
+            missingTile.className = "w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 border-2 border-amber-300 flex items-center justify-center text-2xl sm:text-3xl font-black text-white shadow-lg fill-animation";
+
+            // Update Score
+            score += 100;
+            document.getElementById('scoreDisplay').innerText = `得分：${score}`;
+
+            // Play Sound Feedback (Web Audio API Synthesized Tone)
+            playSuccessSound();
+
+            updateSpeechStatus("🎉 太棒了！答對了！", "text-emerald-600 font-bold text-base");
+
+            // Display Origin and Example details
+            setTimeout(() => {
+                document.getElementById('idiomOrigin').innerText = data.origin;
+                document.getElementById('idiomExample').innerText = `例句：${data.example}`;
+                document.getElementById('extraDetailCard').classList.remove('hidden');
+            }, 600);
+        }
+
+        function nextLevel() {
+            currentLevel++;
+            loadLevel(currentLevel);
+        }
+
+        // Simple Audio Synthesizer for Victory Feedback
+        function playSuccessSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = ctx.currentTime;
+                
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now); // C5
+                osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } catch(e) {
+                // AudioContext not supported or allowed
+            }
+        }
+
+        function toggleFallbackInput() {
+            const section = document.getElementById('fallbackSection');
+            section.classList.toggle('hidden');
+        }
+
+        function checkManualInput() {
+            if (isCurrentAnswered) return;
+            const inputField = document.getElementById('manualInput');
+            const userVal = inputField.value.trim();
+            const currentIdiom = idiomDatabase[currentLevel].idiom;
+
+            if (userVal === currentIdiom) {
+                handleCorrectAnswer();
+                inputField.value = '';
+            } else {
+                updateSpeechStatus(`输入的 "${userVal}" 不正確，再試一次吧！`, "text-rose-500 font-bold");
+            }
+        }
+
+        function renderHandbook() {
+            const listContainer = document.getElementById('handbookList');
+            listContainer.innerHTML = '';
+
+            idiomDatabase.forEach((item, idx) => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 hover:bg-slate-100/80 transition-colors";
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-bold text-indigo-900 text-base">${item.idiom}</span>
+                        <span class="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-full font-semibold">${item.difficulty}</span>
+                    </div>
+                    <p class="text-xs text-slate-600 mb-1"><span class="font-bold text-slate-700">釋義：</span>${item.meaning}</p>
+                    <p class="text-xs text-slate-500 italic"><span class="font-bold text-slate-600">例句：</span>${item.example}</p>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.toggle('hidden');
+        }
+
+        function showVictoryModal() {
+            document.getElementById('finalScore').innerText = score;
+            document.getElementById('finalIdiomsCount').innerText = idiomDatabase.length;
+            toggleModal('victoryModal');
+        }
+
+        function restartGame() {
+            currentLevel = 0;
+            score = 0;
+            document.getElementById('scoreDisplay').innerText = `得分：0`;
+            toggleModal('victoryModal');
+            loadLevel(currentLevel);
+        }
+    </script>
+</body>
+</html>
